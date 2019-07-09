@@ -36,5 +36,11 @@
         <attr name="qrcv_isScanLineReverse" format="boolean" />
         <!-- 扫描线的网格图片资源，默认值为null -->
         <attr name="qrcv_customGridScanLineDrawable" format="reference" />
+        <!-- 扫描条码时的提示文案，默认值为null -->
+        <attr name="qrcv_tipText" format="string|reference" />
+        <!-- 提示文案字体大小，默认值为14sp -->
+        <attr name="qrcv_tipTextSize" format="dimension|reference" />
+        <!-- 提示文案颜色，默认值为@android:color/white -->
+        <attr name="qrcv_tipTextColor" format="color|reference" />
     </declare-styleable>
 </resources>

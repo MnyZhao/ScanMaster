@@ -2,12 +2,24 @@ package view;
 
 import android.content.Context;
 import android.content.res.TypedArray;
-import android.graphics.*;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.Rect;
+import android.graphics.RectF;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
+import android.text.Layout;
+import android.text.StaticLayout;
+import android.text.TextPaint;
+import android.text.TextUtils;
 import android.util.AttributeSet;
 import android.view.View;
+
 import com.lyhh.library_qrscan.R;
+
 import utils.BGAQRCodeUtil;
 import utils.SystemUtils;
 
@@ -43,8 +55,15 @@ public class ScanBoxView extends View {
     private int mTopOffset;
     private int mToolbarHeight;
 
+    private int mTipTextColor;
+    private int mTipTextSize;
+    private String mTipText;
+    private StaticLayout mTipTextSl;
+    private int mTipTextMargin;
+
     private Bitmap mOriginQRCodeScanLineBitmap;
     private Bitmap mOriginQRCodeGridScanLineBitmap;
+    private TextPaint mTipPaint;
 
 
     private float mHalfCornerSize;
@@ -70,8 +89,13 @@ public class ScanBoxView extends View {
         mScanLineBitmap = null;
         mBorderSize = SystemUtils.dp2px(context, 1);
         mMoveStepDistance = SystemUtils.dp2px(context, 2);
+        mTipTextMargin = SystemUtils.dp2px(context,20);
+
+        mTipPaint = new TextPaint();
+        mTipPaint.setAntiAlias(true);
 
         initCustomAttrs(context, attrs);
+
     }
 
     public void initCustomAttrs(Context context, AttributeSet attrs) {
@@ -118,6 +142,12 @@ public class ScanBoxView extends View {
             mCustomGridScanLineDrawable = typedArray.getDrawable(attr);
         } else if (attr == R.styleable.QRCodeView_qrcv_toolbarHeight) {
             mToolbarHeight = typedArray.getDimensionPixelSize(attr, 0);
+        }  else if(attr == R.styleable.QRCodeView_qrcv_tipText) {
+            mTipText = typedArray.getString(attr);
+        } else if(attr == R.styleable.QRCodeView_qrcv_tipTextColor) {
+            mTipTextColor = typedArray.getColor(attr, mTipTextColor);
+        } else if(attr == R.styleable.QRCodeView_qrcv_tipTextSize) {
+            mTipTextSize = typedArray.getDimensionPixelSize(attr, mTipTextSize);
         }
     }
 
@@ -140,6 +170,8 @@ public class ScanBoxView extends View {
         mTopOffset += mToolbarHeight;
         mHalfCornerSize = 1.0f * mCornerSize / 2;
 
+        mTipPaint.setColor(mTipTextColor);
+        mTipPaint.setTextSize(mTipTextSize);
 
         setIsBarcode();
     }
@@ -161,6 +193,9 @@ public class ScanBoxView extends View {
 
         // 画扫描线
         drawScanLine(canvas);
+
+        // 画提示文字
+        drawTipText(canvas);
 
         // 移动扫描线的位置
         moveScanLine();
@@ -324,6 +359,22 @@ public class ScanBoxView extends View {
         postInvalidate();
     }
 
+    /**
+     * 画提示文本
+     */
+    private void drawTipText(Canvas canvas) {
+        if (TextUtils.isEmpty(mTipText)) {
+            return;
+        }
+
+        mTipTextSl = new StaticLayout(mTipText, mTipPaint, BGAQRCodeUtil.getScreenResolution(getContext()).x, Layout.Alignment.ALIGN_CENTER, 1.0f, 0,
+                true);
+        canvas.save();
+        canvas.translate(0, mFramingRect.top - mTipTextMargin - mTipTextSl.getHeight());
+        mTipTextSl.draw(canvas);
+        canvas.restore();
+    }
+
     public int getMaskColor() {
         return mMaskColor;
     }
@@ -452,4 +503,15 @@ public class ScanBoxView extends View {
     public void setHalfCornerSize(float halfCornerSize) {
         mHalfCornerSize = halfCornerSize;
     }
+
+    public void setShowContent(String tipText) {
+        mTipText = tipText;
+        refreshScanBox();
+    }
+
+    private void refreshScanBox() {
+        calFramingRect();
+        postInvalidate();
+    }
+
 }
