@@ -98,11 +98,37 @@ public class DecodeCore {
             processSrc = getMatrix(rotatedData, width, height, cropRect);
         }
 
-        Result rawResult = null;
+        // 1.使用ZXing
+        Result rawResult = zxingDecode(processSrc,processWidth,processWidth);
 
+        //2.使用zbar
+        if (rawResult == null) {
+            rawResult = zbarDecode(processSrc,processWidth,processHeight);
+        }
+
+        if (rawResult == null) {
+            // OpenCV预处理
+            byte[] processData = new byte[processWidth * processHeight * 3 / 2];
+            ImagePreProcess.preProcess(processSrc, processWidth, processHeight, processData);
+
+            //3. opencv+zxing
+            rawResult = zxingDecode(processSrc,processWidth,processHeight);
+
+            //4. opencv+zbar
+            if (rawResult == null) {
+                rawResult = zbarDecode(processSrc,processWidth,processHeight);
+            }
+        }
+
+        return rawResult;
+    }
+
+
+    private Result zxingDecode(byte[] processSrc,int processWidth,int processHeight) {
+        Result rawResult = null;
         //1.使用zxing
         PlanarYUVLuminanceSource source = buildLuminanceSource(processSrc, processWidth, processHeight);
-        BinaryBitmap bitmap = new BinaryBitmap(new HybridBinarizer(source));//new GlobalHistogramBinarizer(source)
+        BinaryBitmap bitmap = new BinaryBitmap(new HybridBinarizer(source));
         try {
             rawResult = multiFormatReader.decodeWithState(bitmap);
             Log.v(TAG, "zxing success");
@@ -113,54 +139,17 @@ public class DecodeCore {
         } finally {
             multiFormatReader.reset();
         }
-
-        //2.使用zbar
-        if (rawResult == null) {
-            String zbarResult = ZbarController.getInstance().scan(processSrc, processWidth, processHeight);
-            if (zbarResult != null) {
-                rawResult = new Result(zbarResult, null, null, null);
-                Log.v(TAG, "zbar success");
-            }
-        }
-
-        if (rawResult == null) {
-            byte[] processData = new byte[processWidth * processHeight * 3 / 2];
-            ImagePreProcess.preProcess(processSrc, processWidth, processHeight, processData);
-
-            if (isDebugMode) {
-                lastPreviewData = processSrc;
-                lastPreProcessData = processData;
-                lastPreProcessWidth = processWidth;
-                lastPreProcessHeight = processHeight;
-            }
-
-            //3. opencv+zxing
-            source = buildLuminanceSource(processData, processWidth, processHeight);
-            bitmap = new BinaryBitmap(new HybridBinarizer(source));
-            try {
-                rawResult = multiFormatReader.decodeWithState(bitmap);
-                Log.v(TAG, "zxing success with opencv");
-            } catch (Exception re) {
-                if (re instanceof NotFoundException) {
-                    CameraZoomStrategy.getInstance().findNoPoint();
-                }
-                // continue
-            } finally {
-                multiFormatReader.reset();
-            }
-
-            //4. opencv+zbar
-            if (rawResult == null) {
-                String zbarResult = ZbarController.getInstance().scan(processData, processWidth, processHeight);
-                if (zbarResult != null) {
-                    rawResult = new Result(zbarResult, null, null, null);
-                    Log.v(TAG, "zbar success with opencv");
-                }
-            }
-        }
-
         return rawResult;
     }
+
+    private Result zbarDecode(byte[] processSrc,int processWidth,int processHeight) {
+        String zbarResult = ZbarController.getInstance().scan(processSrc, processWidth, processHeight);
+        if (zbarResult != null) {
+            return new Result(zbarResult,null,null,null);
+        }
+        return null;
+    }
+
 
     /**
      * A factory method to build the appropriate LuminanceSource object based on
